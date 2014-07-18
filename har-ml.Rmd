@@ -1,0 +1,150 @@
+---
+title: "Human Activity Recognition with wearable accelerometers"
+author: "Dena Movek"
+date: "July 17, 2014"
+output: html_document
+---
+```{r functions, echo=FALSE}
+listFactorColumn <- function(df) {
+  #df - data frame to analyze
+  out <- integer(0)
+  for (i in 1:ncol(df)) if (is.factor(df[, i])) {
+    out[length(out) + 1] = i
+  }
+  out
+}
+
+listColumnNA <- function(df) {
+  #df - data frame to analyze
+  #returns numeric proportions of NAs for each column
+  out <- integer(0)
+  for (i in 1:ncol(df)) out[length(out) + 1] = sum(is.na(df[, i]))/nrow(df)
+  out
+}
+
+listUnacceptableColumnNA <- function(df) {
+  #df - data frame to analyze
+  #returns numeric indices of columns with NA proportions above thresh
+  thresh <- 0.9
+  out <- logical(0)
+  for (i in 1:ncol(df)) {
+    if (sum(is.na(df[, i]))/nrow(df) > thresh) out[length(out) + 1] = i
+  }
+  out
+}
+
+pml_write_files = function(x){
+  #supplied function for creating all the submission files
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+```
+```{r initialization, echo=FALSE, message=FALSE}
+library(caret)
+fileName = c("pml-training", "pml-testing")
+fileUrl = c("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+            "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+for (i in 1:2) if (!file.exists(fileName[i])) download.file(fileUrl[i], fileName[i], method="curl")
+if (!exists("train.raw")) train.raw <- read.csv(fileName[1])[ , -c(1:7)]
+sampleSize = 7000
+seed = 32343
+trainingPartition = 0.7
+set.seed(seed)
+```
+```{r sampling, echo=FALSE}
+train.sample <- train.raw[sample(nrow(train.raw), sampleSize), ]
+classe <- train.sample$classe
+train.sample <- train.sample[, -listFactorColumn(train.sample)]
+indexUnacceptableColumnNA <- listUnacceptableColumnNA(train.sample)
+train.sample <- train.sample[, -indexUnacceptableColumnNA]
+if (is.null(train.sample$classe)) train.sample <- cbind(classe = classe, train.sample)
+inTrain = createDataPartition(train.sample$classe, p = trainingPartition, list = FALSE)
+training = train.sample[ inTrain, ]
+validation = train.sample [ -inTrain, ]
+testing <- read.csv(fileName[2])
+
+```
+
+## Synposis
+The study used off the shelf RStudio statistical software and the CRAN caret package's train function with random forest; the dataset from human worn accelerometers provided by Groupware LES [http://groupware.les.inf.puc-rio.br/har#ixzz37WRMx5p1](http://groupware.les.inf.puc-rio.br/har#ixzz37WRMx5p1) consisted of `r nrow(train.raw)` cases with `r ncol(train.raw) - 1` predictors.  
+Using a sample of only `r sampleSize` cases of which `r nrow(training)` were allocated to training the model and `r nrow(validation)` were allocating to validating the model, the random forest algorithm was able to find successfully predict all `r nrow(testing)` supplied test cases in a few minutes with a single processor core on an ultrabook computer.
+
+### Original Research Citation
+Provided under the Creative Commons license.  
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H.
+Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements.
+Proceedings of 21st Brazilian Symposium on Artificial Intelligence.
+Advances in Artificial Intelligence - SBIA 2012.
+In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012.
+ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
+
+## Predictor correlation and Principal Component Analysis
+The author informally analyzed the predictor correlation to determine if it was appropriate to pre-process the dataset using Principal Component Analysis (PCA).  
+The analysis was inconclusive as a summary showed some predictors were highly correlated though a minority were highly correlated. The author decided to compare validation set accuracy with and without PCA preprocessing.
+
+## Predictor selection heuristics
+* Highly empirical but informal approach to determining sample size and included predictors based on experimentation
+with execution time and accuracy vs a validation set split from the original training set.
+* The author gave consideration that the execution environment is resource constained (an ultrabook).
+* Yielding a workably accurate prediction with a subset of cases and predictors was an area of interest for the study.
+
+#### Case sampling
+* Pseudo-random selection (seed = `r seed`) of `r sampleSize` samples from given training set; partitioned into training (`r trainingPartition * 100`%) and validation sets.
+
+### Predictor selection process and results
+* Many of the original dataset features were factors. Removing all factors enabled model generation in a few minutes; including them increased execution time so hugely that the author gave up after an hour. Converting the factors to numeric values increased execution time several fold but did not improve prediction accuracy against the validation set.  
+The author excluded all factors in the final model.
+* `r length(indexUnacceptableColumnNA)` of the original predictors were extremely sparsely populated. The author believes they were aggregate or summary statistics. Including them caused the random forest algorithm to yield predictions in only a minority of cases; excluding them resulted in workable accuracy with short execution time. The author excluded them from the final model.
+* `r length(train.sample)` features remained after these automated removal processes.
+
+### Use of one validation or cross validation
+This paper uses two types of validation for the predictive model:
+* Cross validation internal to the _train()_ function using the _trainControl(method = 'cv')_ parameter. The author noted that including this parameter decreased execution time several fold with little accuracy effect as compared with a parameterless trainControl().
+* A one pass validation predicting against the validation set.
+
+## Computation
+* Model fit with Principal Components Analysis
+```{r computation.pc, message=FALSE}
+preProc <- preProcess(train.sample[, -1], method=c("center", "scale", "pca"), thresh = 0.95)
+trainPC <- predict(preProc, train.sample[, -1])
+trainPC <- cbind(classe, trainPC)
+```
+```{r partition.pc, echo=FALSE}
+training.pc = trainPC[ inTrain, ]
+validation.pc = trainPC[ -inTrain, ]
+```
+```{r modelFit, echo=TRUE}
+if (file.exists("modFit.pc")) {
+  modFit.pc <- readRDS("modFit.pc")
+} else {
+  modFit.pc <- train(as.factor(classe) ~ ., data = training.pc, method = "rf", trControl = trainControl(method='cv'))
+}
+```
+* Model fit without Principal Components Analysis
+```{r computation.cv, message=FALSE}
+if (file.exists("modFit.cv")) {
+  modFit.cv <- readRDS("modFit.cv")
+} else {
+  modFit.cv = train(as.factor(classe) ~ . , data = training, method = 'rf', trControl = trainControl(method='cv'))
+}
+```
+## Prediction results against validation set and testing set
+### Validation Set
+```{r echo=FALSE, message=FALSE}
+predict.pc <- predict(modFit.pc, validation.pc[ , -1])
+predict.cv <- predict(modFit.cv, validation[ , -1])
+print ("Results with Principal Component Analysis")
+confusionMatrix(predict.pc, validation.pc$classe)$overall
+print ("Results without Principal Component Analysis")
+confusionMatrix(predict.cv, validation$classe)$overall
+errorRate <- 1 - confusionMatrix(predict.cv, validation$classe)$overall["Accuracy"]
+names(errorRate) <- "error rate"
+```
+The prediction accuracy measured against the validation set without Principal Component Analysis is more favorable. Though the validation set is not truly out of sample and this figure may be optimistic, the author estimates an out of sample error rate of `r signif(errorRate * 100, 2)`%. The author expects that increases the sample size to include all available cases would decrease the error rate.
+
+### Testing Set
+Due to the honor code, this version of the paper will not report the specific test predictions. The author is pleased to report that the model predicted all `r nrow(testing)` test cases successfully.
