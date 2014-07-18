@@ -1,6 +1,6 @@
 ---
 title: "Human Activity Recognition with wearable accelerometers"
-author: "Dena Movek"
+author: "Dena Vomk"
 date: "July 17, 2014"
 output: html_document
 ---
