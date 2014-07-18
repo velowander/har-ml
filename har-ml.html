@@ -90,12 +90,16 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 <ul>
 <li>Many of the original dataset features were factors. Removing all factors enabled model generation in a few minutes; including them increased execution time so hugely that the author gave up after an hour. Converting the factors to numeric values increased execution time several fold but did not improve prediction accuracy against the validation set.<br />The author excluded all factors in the final model.</li>
 <li>67 of the original predictors were extremely sparsely populated. The author believes they were aggregate or summary statistics. Including them caused the random forest algorithm to yield predictions in only a minority of cases; excluding them resulted in workable accuracy with short execution time. The author excluded them from the final model.</li>
-<li>53 features remained after these automated removal processes.</li>
+<li>52 features, plus the outcome, remained after these automated removal processes.</li>
 </ul>
 </div>
 <div id="use-of-one-validation-or-cross-validation" class="section level3">
 <h3>Use of one validation or cross validation</h3>
-<p>This paper uses two types of validation for the predictive model: * Cross validation internal to the <em>train()</em> function using the <em>trainControl(method = ‘cv’)</em> parameter. The author noted that including this parameter decreased execution time several fold with little accuracy effect as compared with a parameterless trainControl(). * A one pass validation predicting against the validation set.</p>
+<p>This paper uses two types of validation for the predictive model:</p>
+<ul>
+<li><p>Cross validation internal to the <em>train()</em> function using the <em>trainControl(method = ‘cv’)</em> parameter. The author noted that including this parameter decreased execution time several fold with little accuracy effect as compared with a parameterless trainControl().</p></li>
+<li><p>An external, one pass validation predicting against the validation set.</p></li>
+</ul>
 </div>
 </div>
 <div id="computation" class="section level2">
@@ -134,7 +138,7 @@ trainPC &lt;- cbind(classe, trainPC)</code></pre>
 ##         0.9828         0.9783         0.9763         0.9880         0.2812 
 ## AccuracyPValue  McnemarPValue 
 ##         0.0000            NaN</code></pre>
-<p>The prediction accuracy measured against the validation set without Principal Component Analysis is more favorable. Though the validation set is not truly out of sample and this figure may be optimistic, the author estimates an out of sample error rate of 1.7%. The author expects that increasing the sample size to include all available cases would decrease the error rate.</p>
+<p>The prediction accuracy measured against the validation set without Principal Component Analysis is more favorable. Though the validation set is not truly out of sample and this figure may be optimistic, the author estimates an out of sample error rate of <strong>1.7%</strong>. The author expects that increasing the sample size to include all available cases would decrease the error rate.</p>
 </div>
 <div id="testing-set" class="section level3">
 <h3>Testing Set</h3>

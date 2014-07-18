@@ -99,12 +99,14 @@ with execution time and accuracy vs a validation set split from the original tra
 * Many of the original dataset features were factors. Removing all factors enabled model generation in a few minutes; including them increased execution time so hugely that the author gave up after an hour. Converting the factors to numeric values increased execution time several fold but did not improve prediction accuracy against the validation set.  
 The author excluded all factors in the final model.
 * `r length(indexUnacceptableColumnNA)` of the original predictors were extremely sparsely populated. The author believes they were aggregate or summary statistics. Including them caused the random forest algorithm to yield predictions in only a minority of cases; excluding them resulted in workable accuracy with short execution time. The author excluded them from the final model.
-* `r length(train.sample)` features remained after these automated removal processes.
+* `r length(train.sample) -1` features, plus the outcome, remained after these automated removal processes.
 
 ### Use of one validation or cross validation
 This paper uses two types of validation for the predictive model:
+
 * Cross validation internal to the _train()_ function using the _trainControl(method = 'cv')_ parameter. The author noted that including this parameter decreased execution time several fold with little accuracy effect as compared with a parameterless trainControl().
-* A one pass validation predicting against the validation set.
+
+* An external, one pass validation predicting against the validation set.
 
 ## Computation
 * Model fit with Principal Components Analysis
@@ -144,7 +146,7 @@ confusionMatrix(predict.cv, validation$classe)$overall
 errorRate <- 1 - confusionMatrix(predict.cv, validation$classe)$overall["Accuracy"]
 names(errorRate) <- "error rate"
 ```
-The prediction accuracy measured against the validation set without Principal Component Analysis is more favorable. Though the validation set is not truly out of sample and this figure may be optimistic, the author estimates an out of sample error rate of `r signif(errorRate * 100, 2)`%. The author expects that increases the sample size to include all available cases would decrease the error rate.
+The prediction accuracy measured against the validation set without Principal Component Analysis is more favorable. Though the validation set is not truly out of sample and this figure may be optimistic, the author estimates an out of sample error rate of __`r signif(errorRate * 100, 2)`%__. The author expects that increasing the sample size to include all available cases would decrease the error rate.
 
 ### Testing Set
 Due to the honor code, this version of the paper will not report the specific test predictions. The author is pleased to report that the model predicted all `r nrow(testing)` test cases successfully.
