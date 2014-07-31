@@ -1,4 +1,6 @@
-Original Research Citation:
+#Idea scratch pad and test bed
+
+#Original Research Citation:
 # Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H.
 # Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements.
 # Proceedings of 21st Brazilian Symposium on Artificial Intelligence.
@@ -68,10 +70,36 @@ classe <- train.sample$classe
 train.sample <- train.sample[, -listFactorColumn(train.sample)]
 train.sample <- train.sample[, -listUnacceptableColumnNA(train.sample)]
 
+#idea: choose features based on "information gain" (FSelector::information.gain())
+library(FSelector)
+predictors = names(training)[-c(1,dim(training)[2])]
+igs = sapply(predictors, function(pred) {
+  fo = as.formula(paste0("classe ~ ", pred))
+  ig = information.gain(fo, data = training)
+  return(ig[[1,1]])
+})
+hist(igs, breaks = seq(0,2.5, 0.1), xlab="IG", main="Variable information gain", freq=F)
+features = names(igs[igs > 0.05])
+
 #train.sample <- data.frame( sapply(train.sample [ , -ncol(train.sample)], as.numeric) )
 #train.sample[ , apply(train.sample[, -153], 2, var, na.rm=TRUE) != 0]
 if (is.null(train.sample$classe)) train.sample <- cbind(classe = classe, train.sample)
 #if (is.null(train.sample$classe)) train.sample <- as.data.frame(lapply(train.sample,as.numeric))
+
+#Use folding for validation
+n.fold = 5
+folds.train = createFolds(y=x$classe, k=n.fold, list=T, returnTrain=T)
+folds.test = createFolds(y=x$classe, k=n.fold, list=T, returnTrain=F)
+
+result = rep(NA, n.fold)
+for (i in 1:n.fold) {
+  x.train = x[folds.train[[i]], ]
+  x.test = x[folds.test[[i]], ]
+
+  mod = train(classe ~ ., data=x.train, method='svmLinear')
+  preds = predict(mod, x.test)
+  result[i] = confusionMatrix(preds, x.test$classe)$overall['Accuracy']
+}
 
 #For PCA:
 preProc <- preProcess(train.sample[, -1], method=c("center", "scale", "pca"), thresh = 0.95)
